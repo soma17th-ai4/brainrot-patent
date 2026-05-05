@@ -51,3 +51,51 @@
 4. 본인 역할에 맞는 폴더 README
 
 AI 코딩 도구에게 작업을 맡길 때는 `AGENTS.md`의 작업 요청 템플릿을 먼저 붙여넣습니다.
+
+## 빠른 실행
+
+Backend mock API:
+
+```bash
+cd backend
+python -m venv .venv
+.venv\Scripts\activate
+pip install -r requirements.txt
+uvicorn app.main:app --reload
+```
+
+Frontend:
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Backend test:
+
+```bash
+python -m unittest discover -s backend/tests -t .
+```
+
+Scaffold check:
+
+```bash
+python scripts/validate_scaffold.py
+```
+
+Playwright:
+
+```bash
+cd tests
+npm install
+npx playwright test
+```
+
+## 현재 구현 상태
+
+- `backend/app/main.py`: `/health`, `/api/generate` mock API
+- `backend/app/generator.py`: `examples/sample_response.json` 기반 fallback 생성
+- `frontend/app/page.tsx`: 입력/결과 미리보기 UI
+- `tests/specs/demo-flow.spec.ts`: 발표용 입력 E2E 테스트 초안
+- `.github/workflows/ci.yml`: scaffold와 backend unit test CI

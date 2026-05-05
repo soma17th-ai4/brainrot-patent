@@ -44,3 +44,11 @@ Next.js 14 + TypeScript + Tailwind CSS로 Brainrot Patent의 입력/결과 UI를
 API 필드명은 바꾸지 말고, sample_response.json으로 먼저 화면을 구성해줘.
 ```
 
+## 실행
+
+```bash
+npm install
+npm run dev
+```
+
+기본 Backend URL은 `http://localhost:8000`입니다. 필요하면 루트 `.env.example`을 참고해 `NEXT_PUBLIC_BACKEND_URL`을 설정합니다.

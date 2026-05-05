@@ -40,3 +40,19 @@ FastAPI로 /health와 /api/generate를 구현해줘.
 처음에는 examples/sample_response.json과 같은 구조를 반환하는 mock/fallback부터 만들어줘.
 ```
 
+## 실행
+
+```bash
+python -m venv .venv
+.venv\Scripts\activate
+pip install -r requirements.txt
+uvicorn app.main:app --reload
+```
+
+## 테스트
+
+repo 루트에서 실행합니다.
+
+```bash
+python -m unittest discover -s backend/tests -t .
+```
