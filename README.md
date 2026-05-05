@@ -41,3 +41,13 @@
 - Search/RAG: Tavily 또는 사전 샘플 데이터 기반 fallback
 - PDF: WeasyPrint 또는 HTML print fallback
 
+## 협업 시작 방법
+
+팀원이 처음 pull한 뒤에는 아래 순서로 읽고 작업합니다.
+
+1. `AGENTS.md`
+2. `CONTRIBUTING.md`
+3. `TASKS.md`
+4. 본인 역할에 맞는 폴더 README
+
+AI 코딩 도구에게 작업을 맡길 때는 `AGENTS.md`의 작업 요청 템플릿을 먼저 붙여넣습니다.
