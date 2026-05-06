@@ -21,6 +21,8 @@ jobs:
       - name: Validate scaffold
         run: python scripts/validate_scaffold.py
 
+      - name: Install Modules
+        run: pip install -r backend/requirements.txt
+
       - name: Run backend unit tests
         run: python -m unittest discover -s backend/tests -t .
-
