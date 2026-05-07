@@ -1,124 +1,137 @@
 "use client";
 
 import { FormEvent, useState } from "react";
-import { GenerateResponse, generatePatent } from "../lib/api";
+import { generatePatent } from "../lib/api";
 import { sampleResponse } from "../lib/sampleResponse";
 import { ChatInput } from "@/components/ui/ChatInput";
 import { Disclaimer } from "@/components/ui/Disclaimer";
 import { toast } from "sonner";
 import { getFallback } from "@/lib/examples";
-import { Tone } from "@/lib/types";
+import { MessageBubble } from "@/components/ui/MessageBubble";
+import { PatentResult } from "@/components/ui/PatentResult";
+import { Button } from "@/components/ui/button";
+import type { GenerateResponse, Tone } from "@/lib/types";
+
+type Status = "idle" | "loading" | "done" | "error";
 
 export default function Home() {
-  const [idea, setIdea] = useState("방구로 가는 자동차");
-  const [result, setResult] = useState<GenerateResponse>(sampleResponse);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState("");
-
-  async function onSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setIsLoading(true);
-    setError("");
+  const [status, setStatus] = useState<Status>("idle");
+  const [idea, setIdea] = useState<string | null>(null);
+  const [result, setResult] = useState<GenerateResponse | null>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const handleSubmit = async (
+    newIdea: string,
+    tone: Tone,
+    useSearch: boolean,
+  ) => {
+    setStatus("loading");
+    setErrorMsg(null);
+    setResult(null);
+    setIdea(newIdea);
 
     try {
-      const response = await generatePatent({
-        idea,
-        tone: "serious",
-        use_search: true,
+      const res = await generatePatent({
+        idea: newIdea,
+        tone,
+        use_search: useSearch,
       });
-      setResult(response);
-    } catch {
-      setError("API 연결에 실패해 샘플 결과를 표시합니다.");
-      setResult(sampleResponse);
-    } finally {
-      setIsLoading(false);
+      setResult(res);
+      setStatus("done");
+    } catch (e) {
+      const fallback = getFallback(newIdea);
+      setResult(fallback);
+      setStatus("done");
+      const msg = e instanceof Error ? e.message : "알 수 없는 오류";
+      setErrorMsg(msg);
+      toast.warning(`API 연결 실패 - 샘플 결과로 표시합니다 (${msg})`);
     }
-  }
+  };
+
+  const handleReset = () => {
+    setStatus("idle");
+    setIdea(null);
+    setResult(null);
+    setErrorMsg(null);
+  };
+
+  const handlePrint = () => {
+    if (typeof window !== "undefined") window.print();
+  };
 
   return (
-    <main className="shell">
-      <section className="workspace">
-        <div className="intro">
-          <p className="eyebrow">Brainrot Patent</p>
-          <h1>황당한 아이디어를 특허 명세서처럼 바꿉니다.</h1>
-          <p>
-            엔터테인먼트 목적의 2주 MVP 데모입니다. 실제 특허 출원, 법률 자문,
-            신규성 판단을 제공하지 않습니다.
-          </p>
+    <div className="min-h-screen bg-background flex flex-col">
+      <header
+        className="px-4 py-3 border-b border-border bg-card/50
+no-print"
+      >
+        <h1 className="text-base sm:text-lg font-bold text-center">
+          🧠 Brainrot Patent
+        </h1>
+      </header>
+
+      <main
+        className="flex-1 px-3 sm:px-4 py-4 max-w-2xl w-full mx-auto
+space-y-3"
+      >
+        <div className="no-print">
+          <Disclaimer />
         </div>
 
-        <form className="composer" onSubmit={onSubmit}>
-          <label htmlFor="idea">발명 아이디어</label>
-          <textarea
-            id="idea"
-            value={idea}
-            onChange={(event) => setIdea(event.target.value)}
-            rows={4}
-            placeholder="예: 잠을 대신 자주는 베개"
-          />
-          <button
-            type="submit"
-            disabled={isLoading || idea.trim().length === 0}
+        {/* idle: 봇 인사 + 입력창 */}
+        {status === "idle" && (
+          <div className="no-print">
+            <MessageBubble role="bot">
+              황당한 아이디어를 말해줘. 진짜 특허 같은 명세서로 만들어줄게!
+            </MessageBubble>
+            <ChatInput onSubmit={handleSubmit} />
+          </div>
+        )}
+
+        {/* idle 이후: 사용자 입력을 오른쪽 버블로 */}
+        {status !== "idle" && idea && (
+          <div className="no-print">
+            <MessageBubble role="user">{idea}</MessageBubble>
+          </div>
+        )}
+
+        {/* loading */}
+        {status === "loading" && (
+          <div
+            className="rounded-2xl border border-border bg-card px-4 py-3
+max-w-[85%] shadow-sm no-print"
           >
-            {isLoading ? "특허 문체로 변환 중..." : "명세서 생성"}
-          </button>
-          {error ? <p className="error">{error}</p> : null}
-        </form>
-      </section>
+            <p className="text-sm text-muted-foreground animate-pulse">
+              특허 문체로 변환 중...
+            </p>
+          </div>
+        )}
 
-      <section className="document" aria-live="polite">
-        <div className="documentHeader">
-          <span>창작형 특허 명세서</span>
-          <strong>{result.document.title}</strong>
-        </div>
+        {/* 결과 카드 */}
+        {result && (status === "done" || status === "error") && (
+          <PatentResult
+            result={result}
+            onReset={handleReset}
+            onPrint={handlePrint}
+          />
+        )}
 
-        <Section title="기술분야" body={result.document.technical_field} />
-        <Section title="배경기술" body={result.document.background} />
-        <Section title="해결하려는 과제" body={result.document.problem} />
-        <Section title="발명의 구성" body={result.document.configuration} />
+        {/* fallback 표시 중 안내 */}
+        {errorMsg && status === "done" && (
+          <p className="text-xs text-muted-foreground text-center no-print">
+            (백엔드 연결 실패로 샘플 데이터를 표시 중입니다)
+          </p>
+        )}
 
-        <article className="section">
-          <h2>청구항</h2>
-          <ol>
-            {result.document.claims.map((claim, index) => (
-              <li key={index}>{claim}</li>
-            ))}
-          </ol>
-        </article>
-
-        <Section title="요약" body={result.document.summary} />
-
-        <article className="section compact">
-          <h2>근거</h2>
-          {result.sources.length > 0 ? (
-            <ul>
-              {result.sources.map((source) => (
-                <li key={source.url}>
-                  <a href={source.url}>{source.title}</a>
-                  <p>{source.snippet}</p>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p>검색 근거 없이 생성된 데모 결과입니다.</p>
-          )}
-        </article>
-
-        <footer>
-          {result.warnings.map((warning) => (
-            <p key={warning}>{warning}</p>
-          ))}
-        </footer>
-      </section>
-    </main>
-  );
-}
-
-function Section({ title, body }: { title: string; body: string }) {
-  return (
-    <article className="section">
-      <h2>{title}</h2>
-      <p>{body}</p>
-    </article>
+        {/* 극한 에러 케이스 (보통 도달 X) */}
+        {status === "error" && !result && (
+          <div className="text-center py-6 space-y-3 no-print">
+            <p className="text-destructive">🚨 생성 중 문제가 발생했어요</p>
+            <Button variant="outline" onClick={handleReset}>
+              🔃 처음부터 다시
+            </Button>
+          </div>
+        )}
+      </main>
+    </div>
   );
 }
