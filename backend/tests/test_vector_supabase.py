@@ -18,6 +18,7 @@ class VectorSupabaseTest(unittest.TestCase):
     [테스트 목적]
     - SupabaseVectorTool이 설정된 임베딩 모델(Upstage 등)을 이용해 텍스트를 벡터로 정상 변환하는지 확인합니다.
     - Supabase DB의 patents 테이블을 조회하고(SELECT), 유사도 기반 벡터 검색(RPC)이 올바르게 동작하는지 확인합니다.
+    - Supabase DB의 patents 테이블에 대해 rule-based ilike 패턴 검색이 올바르게 동작하는지 확인합니다.
 
     [실행 방법]
     프로젝트 루트 또는 backend 디렉토리에서 아래 명령어 중 하나를 실행합니다.
@@ -115,6 +116,26 @@ class VectorSupabaseTest(unittest.TestCase):
             self.assertTrue(hasattr(matches[0], "similarity"))
             self.assertTrue(hasattr(matches[0], "content"))
             self.assertTrue(hasattr(matches[0], "metadata"))
+
+    def test_rule_based_search_returns_patents(self):
+        """Supabase ilike 기반 rule-based 검색이 실제 patents 테이블에서 동작하는지 확인합니다."""
+        limit = 3
+        rule_query = "자동차"
+        print(f"\n[Test 4] rule-based 검색 시작: 검색어 '{rule_query}'...")
+        patents = self.tool.search_patents_by_rules(rule_query, limit=limit)
+
+        print(f"[Test 4] 검색 완료: {len(patents)}개의 rule-based 결과가 반환되었습니다.")
+        self.assertIsInstance(patents, list)
+        self.assertGreater(len(patents), 0)
+        self.assertLessEqual(len(patents), limit)
+        for i, p in enumerate(patents):
+            score = p.metadata.get("rule_search_score") if p.metadata else None
+            print(f"  -> 결과 {i+1}: id={p.id}, score={score}, title={p.title}")
+            self.assertTrue(p.id)
+            self.assertTrue(hasattr(p, "title"))
+            self.assertIsNotNone(p.metadata)
+            self.assertEqual(p.metadata.get("search_strategy"), "rule_based_ilike")
+            self.assertIsInstance(p.metadata.get("rule_search_score"), float)
 
 
 if __name__ == "__main__":

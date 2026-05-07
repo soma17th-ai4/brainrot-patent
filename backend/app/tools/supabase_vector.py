@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import re
 from dataclasses import dataclass
 from typing import Any
 
@@ -42,6 +43,32 @@ PATENT_SELECT_COLUMNS = (
     "embedded_v2_source_field,"
     "embedded_v2_updated_at"
 )
+# 규칙 기반 검색에서 부분 일치 대상으로 삼을 patents 텍스트 컬럼입니다.
+RULE_SEARCH_COLUMNS = ("inventionTitle", "astrtCont", "desc_v1")
+# 한국어 조사/서술어처럼 특허 검색 키워드로 의미가 약한 짧은 표현은 제외합니다.
+RULE_SEARCH_STOPWORDS = {
+    "가는",
+    "으로",
+    "로",
+    "을",
+    "를",
+    "이",
+    "가",
+    "은",
+    "는",
+    "의",
+    "에",
+    "와",
+    "과",
+    "및",
+    "또는",
+    "하고",
+    "하는",
+    "하다",
+    "장치",
+    "방법",
+    "시스템",
+}
 
 
 @dataclass(frozen=True)
@@ -263,6 +290,83 @@ class SupabaseVectorTool:
         # Supabase row dict를 백엔드 내부 표준 타입으로 변환합니다.
         return [_parse_patent_record(item) for item in response.data or []]
 
+    def search_patents_by_rules(
+        self,
+        query: str,
+        limit: int = 10,
+        candidate_limit: int = 30,
+        min_keyword_length: int = 2,
+    ) -> list[PatentRecord]:
+        """부분 일치와 패턴 매칭으로 patents 검색 결과를 보강합니다.
+
+        벡터 검색은 의미적으로 가까운 결과를 잘 찾지만, 발표용처럼 짧고 황당한 한국어 입력에서는
+        핵심 명사 하나가 빠질 수 있습니다. 이 메서드는 Supabase `ilike` 패턴 검색을 여러 번 수행한 뒤
+        제목, 초록, 설명의 매칭 위치와 키워드 개수로 재정렬해 벡터 검색 보조 후보를 끌어올립니다.
+
+        Args:
+            query: 사용자가 입력한 검색 문장입니다.
+            limit: 최종 반환할 patents row 개수입니다.
+            candidate_limit: 각 패턴 검색에서 가져올 후보 row 개수입니다.
+            min_keyword_length: 규칙 기반 키워드로 인정할 최소 글자 수입니다.
+
+        Returns:
+            규칙 기반 점수 순으로 정렬된 PatentRecord 목록입니다.
+        """
+        normalized_query = _normalize_search_text(query)
+        if not normalized_query:
+            return []
+
+        # 원문 구, 공백 제거 구, 핵심 키워드를 모두 검색 패턴으로 써서 누락을 줄입니다.
+        search_terms = _build_rule_search_terms(
+            normalized_query,
+            min_keyword_length=min_keyword_length,
+        )
+        if not search_terms:
+            return []
+
+        records_by_id: dict[str, PatentRecord] = {}
+        scores_by_id: dict[str, float] = {}
+
+        for term in search_terms:
+            filter_value = _build_supabase_ilike_or_filter(term)
+            if not filter_value:
+                continue
+
+            response = (
+                self.supabase.table(PATENTS_TABLE)
+                .select(PATENT_SELECT_COLUMNS)
+                .or_(filter_value)
+                .limit(candidate_limit)
+                .execute()
+            )
+
+            for item in response.data or []:
+                record = _parse_patent_record(item)
+                if not record.id:
+                    continue
+
+                score = _score_rule_search_record(
+                    record=record,
+                    normalized_query=normalized_query,
+                    search_terms=search_terms,
+                    matched_term=term,
+                )
+                previous_score = scores_by_id.get(record.id, 0.0)
+                if score <= previous_score:
+                    continue
+
+                scores_by_id[record.id] = score
+                records_by_id[record.id] = _with_rule_search_metadata(record, score)
+
+        ranked_ids = sorted(
+            scores_by_id,
+            key=lambda record_id: (
+                -scores_by_id[record_id],
+                records_by_id[record_id].title,
+            ),
+        )
+        return [records_by_id[record_id] for record_id in ranked_ids[:limit]]
+
     def query(
         self,
         query: str,
@@ -371,6 +475,125 @@ def _parse_patent_record(item: dict[str, Any]) -> PatentRecord:
         # 나머지 표시/필터용 값은 metadata로 묶습니다.
         metadata=_build_patent_metadata(item),
     )
+
+
+def _normalize_search_text(value: str | None) -> str:
+    """패턴 검색과 점수 계산에 쓰기 좋게 공백과 대소문자를 정리합니다."""
+    return re.sub(r"\s+", " ", (value or "").strip().lower())
+
+
+def _build_rule_search_terms(
+    query: str,
+    min_keyword_length: int = 2,
+) -> list[str]:
+    """검색 문장에서 구 검색어와 핵심 키워드를 추출합니다."""
+    terms: list[str] = []
+    normalized_query = _normalize_search_text(query)
+    compact_query = normalized_query.replace(" ", "")
+
+    for candidate in (normalized_query, compact_query):
+        if len(candidate) >= min_keyword_length:
+            terms.append(candidate)
+
+    tokens = re.findall(r"[0-9a-zA-Z가-힣]+", normalized_query)
+    for token in tokens:
+        if len(token) < min_keyword_length or token in RULE_SEARCH_STOPWORDS:
+            continue
+        terms.append(token)
+
+    for left, right in zip(tokens, tokens[1:]):
+        if left in RULE_SEARCH_STOPWORDS or right in RULE_SEARCH_STOPWORDS:
+            continue
+        combined = f"{left} {right}"
+        if len(combined.replace(" ", "")) >= min_keyword_length * 2:
+            terms.append(combined)
+
+    return _dedupe_preserving_order(terms)
+
+
+def _build_supabase_ilike_or_filter(term: str) -> str:
+    """Supabase PostgREST `or_`에 넣을 다중 컬럼 ilike 필터 문자열을 만듭니다."""
+    safe_term = _sanitize_supabase_pattern(term)
+    if not safe_term:
+        return ""
+    pattern = f"*{safe_term}*"
+    return ",".join(f"{column}.ilike.{pattern}" for column in RULE_SEARCH_COLUMNS)
+
+
+def _sanitize_supabase_pattern(value: str) -> str:
+    """PostgREST 필터 구문을 깨뜨릴 수 있는 문자를 제거합니다."""
+    return re.sub(r"[^0-9a-zA-Z가-힣ㄱ-ㅎㅏ-ㅣ\s-]", " ", value).strip()
+
+
+def _score_rule_search_record(
+    record: PatentRecord,
+    normalized_query: str,
+    search_terms: list[str],
+    matched_term: str,
+) -> float:
+    """패턴 검색으로 찾은 특허 row에 규칙 기반 점수를 부여합니다."""
+    title = _normalize_search_text(record.title)
+    abstract = _normalize_search_text(record.abstract)
+    description = _normalize_search_text(record.description)
+    compact_query = normalized_query.replace(" ", "")
+    compact_title = title.replace(" ", "")
+    score = 0.0
+
+    if title == normalized_query:
+        score += 120.0
+    if normalized_query and normalized_query in title:
+        score += 90.0
+    if compact_query and compact_query in compact_title:
+        score += 70.0
+    if normalized_query and normalized_query in abstract:
+        score += 45.0
+    if normalized_query and normalized_query in description:
+        score += 30.0
+
+    for term in search_terms:
+        compact_term = term.replace(" ", "")
+        if term in title or compact_term in compact_title:
+            score += 18.0
+        if term in abstract:
+            score += 9.0
+        if term in description:
+            score += 6.0
+
+    if matched_term == normalized_query:
+        score += 12.0
+    elif matched_term.replace(" ", "") == compact_query:
+        score += 8.0
+    else:
+        score += 4.0
+
+    return score
+
+
+def _with_rule_search_metadata(record: PatentRecord, score: float) -> PatentRecord:
+    """규칙 기반 검색 점수를 metadata에 포함한 PatentRecord를 반환합니다."""
+    metadata = dict(record.metadata or {})
+    metadata["rule_search_score"] = round(score, 4)
+    metadata["search_strategy"] = "rule_based_ilike"
+    return PatentRecord(
+        id=record.id,
+        title=record.title,
+        description=record.description,
+        abstract=record.abstract,
+        metadata=metadata,
+    )
+
+
+def _dedupe_preserving_order(values: list[str]) -> list[str]:
+    """입력 순서를 유지하면서 중복 문자열을 제거합니다."""
+    seen: set[str] = set()
+    deduped: list[str] = []
+    for value in values:
+        normalized = _normalize_search_text(value)
+        if not normalized or normalized in seen:
+            continue
+        seen.add(normalized)
+        deduped.append(normalized)
+    return deduped
 
 
 def _build_patent_metadata(item: dict[str, Any]) -> dict[str, Any]:
