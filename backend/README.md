@@ -32,6 +32,11 @@ POST /api/generate
 4. 검색/RAG 연결
 5. PDF 또는 HTML print fallback
 
+## Tools
+
+backend Agent가 쓰는 외부 검색/RAG 도구는 `backend/app/tools/`에 둡니다.
+특히 KIPRIS 특허 검색 도구를 수정하거나 연결할 때는 `backend/app/tools/README.md`를 먼저 읽습니다.
+
 ## AI에게 요청할 때
 
 ```text
