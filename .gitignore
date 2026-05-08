@@ -12,4 +12,8 @@ __pycache__/
 # Local vector data
 chroma_data
 backend/app/storage/ChormaDBdp/
-migration_tmp
+migration/.venv/
+migration/pydeps/
+
+migration/dumps/*.parquet
+migration/dumps/*.parquet.tmp
