@@ -3,7 +3,13 @@ node_modules/
 .next/
 .DS_Store
 
+# Python
+.venv/
+venv/
+__pycache__/
+*.pyc
+
+# Local vector data
 chroma_data
 backend/app/storage/ChormaDBdp/
-
 migration_tmp
