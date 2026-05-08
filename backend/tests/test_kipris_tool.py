@@ -4,7 +4,7 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-from backend.app.tools import KiprisTool
+from backend.app.tools import KiprisTool, getKiprisTools
 from backend.app.tools.kipris_tool import _parse_advanced_search_xml
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
@@ -176,6 +176,24 @@ class KiprisToolTest(unittest.TestCase):
             )
 
         self.fail(f"KIPRIS records를 반환한 후보 쿼리가 없습니다: {failures}")
+
+    def test_get_kipris_tools_returns_langchain_tools(self):
+        try:
+            import langchain  # noqa: F401
+        except ImportError:
+            raise unittest.SkipTest("langchain 패키지가 없어 LangChain Tool 테스트를 건너뜁니다.")
+
+        load_dotenv(ROOT_DIR / ".env")
+        load_dotenv(BACKEND_DIR / ".env", override=True)
+        if not os.getenv("KIPRIS_API_KEY"):
+            raise unittest.SkipTest("필수 환경 변수가 없어 테스트를 건너뜁니다: KIPRIS_API_KEY")
+
+        tools = getKiprisTools(KiprisTool())
+        tools_by_name = {tool.name: tool for tool in tools}
+
+        self.assertIn("search_kipris_patents", tools_by_name)
+        self.assertIn("search_kipris_patents_by_title", tools_by_name)
+        self.assertIn("search_kipris_patents_by_applicant", tools_by_name)
 
 
 if __name__ == "__main__":

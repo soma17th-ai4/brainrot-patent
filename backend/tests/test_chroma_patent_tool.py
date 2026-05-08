@@ -1,6 +1,7 @@
+import json
 import unittest
 
-from backend.app.tools import ChromaPatentTool
+from backend.app.tools import ChromaPatentTool, getChromaTools
 
 
 KNOWN_PATENT_ID = "690dc67fa424e6f6ab885b4a"
@@ -65,6 +66,29 @@ class ChromaPatentToolIntegrationTest(unittest.TestCase):
         self.assertTrue(matches[0].id)
         self.assertTrue(matches[0].document)
         self.assertIsNotNone(matches[0].distance)
+
+    def test_get_tools_returns_langchain_tools_for_real_database(self):
+        try:
+            import langchain  # noqa: F401
+        except ImportError:
+            raise unittest.SkipTest("langchain 패키지가 없어 LangChain Tool 테스트를 건너뜁니다.")
+
+        tools = getChromaTools(self.tool)
+        tools_by_name = {tool.name: tool for tool in tools}
+
+        self.assertIn("count_kipris_patents_chroma", tools_by_name)
+        self.assertIn("get_kipris_patent_by_id", tools_by_name)
+
+        count_payload = json.loads(tools_by_name["count_kipris_patents_chroma"].run(""))
+        print(f"\n[LangChain Tool] count payload={count_payload}")
+        self.assertGreater(count_payload["count"], 0)
+
+        patent_payload = json.loads(
+            tools_by_name["get_kipris_patent_by_id"].run(KNOWN_PATENT_ID)
+        )
+        print(f"[LangChain Tool] get_by_id payload={patent_payload}")
+        self.assertTrue(patent_payload["found"])
+        self.assertEqual(patent_payload["result"]["mongo_id"], KNOWN_PATENT_ID)
 
 
 if __name__ == "__main__":
