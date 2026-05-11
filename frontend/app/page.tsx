@@ -1,8 +1,9 @@
 "use client";
 
-import { FormEvent, useState } from "react";
 import { GenerateResponse, generatePatent } from "../lib/api";
 import { sampleResponse } from "../lib/sampleResponse";
+import { FormEvent, useEffect, useState } from "react";
+import { getOrCreateSessionId } from "@/lib/session";
 
 export default function Home() {
   const [idea, setIdea] = useState("방구로 가는 자동차");
@@ -10,13 +11,22 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
 
+  useEffect(() => {
+    const sessionId = getOrCreateSessionId();
+    console.info("[session]", sessionId);
+  }, []);
+
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setIsLoading(true);
     setError("");
 
     try {
-      const response = await generatePatent({ idea, tone: "serious", use_search: true });
+      const response = await generatePatent({
+        idea,
+        tone: "serious",
+        use_search: true,
+      });
       setResult(response);
     } catch {
       setError("API 연결에 실패해 샘플 결과를 표시합니다.");
@@ -47,7 +57,10 @@ export default function Home() {
             rows={4}
             placeholder="예: 잠을 대신 자주는 베개"
           />
-          <button type="submit" disabled={isLoading || idea.trim().length === 0}>
+          <button
+            type="submit"
+            disabled={isLoading || idea.trim().length === 0}
+          >
             {isLoading ? "특허 문체로 변환 중..." : "명세서 생성"}
           </button>
           {error ? <p className="error">{error}</p> : null}

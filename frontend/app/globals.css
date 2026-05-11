@@ -26,10 +26,100 @@
 
   body {
     @apply bg-background text-foreground antialiased;
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+      "Helvetica Neue", Arial, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
   }
 }
 
-/* 인쇄 시 UI 요소 숨김*/
+@layer components {
+  .shell {
+    @apply mx-auto max-w-5xl px-6 py-10 grid gap-10;
+  }
+
+  .workspace {
+    @apply grid gap-6;
+  }
+
+  .intro {
+    @apply grid gap-2;
+  }
+  .intro .eyebrow {
+    @apply text-xs uppercase tracking-widest text-muted-foreground;
+  }
+  .intro h1 {
+    @apply text-3xl font-semibold leading-tight;
+  }
+  .intro p {
+    @apply text-sm text-muted-foreground;
+  }
+
+  .composer {
+    @apply grid gap-3 p-5 rounded-lg border bg-card shadow-sm;
+  }
+  .composer label {
+    @apply text-sm font-medium;
+  }
+  .composer textarea {
+    @apply w-full resize-y rounded-md border bg-background px-3 py-2 text-sm
+      placeholder:text-muted-foreground focus-visible:outline-none
+      focus-visible:ring-2 focus-visible:ring-ring;
+  }
+  .composer button {
+    @apply justify-self-start inline-flex items-center rounded-md
+      bg-primary px-4 py-2 text-sm font-medium text-primary-foreground
+      hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed
+      transition-colors;
+  }
+  .composer .error {
+    @apply text-sm text-destructive;
+  }
+
+  .document {
+    @apply grid gap-5 p-6 rounded-lg border bg-card shadow-sm;
+  }
+  .documentHeader {
+    @apply grid gap-1 border-b pb-4;
+  }
+  .documentHeader span {
+    @apply text-xs uppercase tracking-widest text-muted-foreground;
+  }
+  .documentHeader strong {
+    @apply text-2xl font-semibold leading-snug;
+  }
+
+  .section {
+    @apply grid gap-2;
+  }
+  .section h2 {
+    @apply text-sm font-semibold uppercase tracking-wider text-muted-foreground;
+  }
+  .section p {
+    @apply text-base leading-relaxed;
+  }
+  .section ol,
+  .section ul {
+    @apply pl-5 grid gap-2 text-base leading-relaxed;
+  }
+  .section ol {
+    @apply list-decimal;
+  }
+  .section ul {
+    @apply list-disc;
+  }
+  .section.compact p,
+  .section.compact li {
+    @apply text-sm text-muted-foreground;
+  }
+  .section a {
+    @apply underline underline-offset-2 hover:text-primary;
+  }
+
+  .document footer {
+    @apply pt-4 border-t text-xs text-muted-foreground grid gap-1;
+  }
+}
+
+/* 인쇄 시 UI 요소 숨김 */
 @media print {
   .no-print {
     display: none !important;
