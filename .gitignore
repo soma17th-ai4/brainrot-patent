@@ -17,3 +17,6 @@ migration/pydeps/
 
 migration/dumps/*.parquet
 migration/dumps/*.parquet.tmp
+
+# Harness workspace (PR plans, build reports)
+_workspace/
