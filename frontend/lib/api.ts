@@ -1,3 +1,5 @@
+import { getOrCreateSessionId } from "./session";
+
 export type GenerateResponse = {
   id: string;
   status: "completed" | "error";
@@ -29,15 +31,21 @@ type GenerateRequest = {
   use_search: boolean;
 };
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL ?? "http://localhost:8000";
+const BACKEND_URL =
+  process.env.NEXT_PUBLIC_BACKEND_URL ?? "http://localhost:8000";
 
-export async function generatePatent(request: GenerateRequest): Promise<GenerateResponse> {
+export async function generatePatent(
+  request: GenerateRequest,
+): Promise<GenerateResponse> {
   const response = await fetch(`${BACKEND_URL}/api/generate`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
-    body: JSON.stringify(request),
+    body: JSON.stringify({
+      ...request,
+      session_id: getOrCreateSessionId(),
+    }),
   });
 
   if (!response.ok) {
@@ -46,4 +54,3 @@ export async function generatePatent(request: GenerateRequest): Promise<Generate
 
   return response.json();
 }
-
