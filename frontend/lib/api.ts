@@ -54,3 +54,32 @@ export async function generatePatent(
 
   return response.json();
 }
+
+export type RevisionResponse = {
+  session_id: string;
+  assistant_message: string;
+  document: GenerateResponse["document"];
+  warnings: string[];
+};
+
+export async function sendRevisionMessage(
+  message: string,
+): Promise<RevisionResponse> {
+  const sessionId = getOrCreateSessionId();
+  const response = await fetch(
+    `${BACKEND_URL}/api/sessions/${sessionId}/messages`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ message }),
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error(`Revision request failed: ${response.status}`);
+  }
+
+  return response.json();
+}
