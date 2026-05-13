@@ -117,15 +117,85 @@
   .document footer {
     @apply pt-4 border-t text-xs text-muted-foreground grid gap-1;
   }
+
+  .chat {
+    @apply grid gap-4 p-5 rounded-lg border bg-card shadow-sm;
+  }
+  .chatHeader {
+    @apply grid gap-1;
+  }
+  .chatHeader h2 {
+    @apply text-base font-semibold;
+  }
+  .chatHint {
+    @apply text-xs text-muted-foreground;
+  }
+
+  .chatLog {
+    @apply grid gap-2 max-h-80 overflow-y-auto pr-1;
+  }
+  .chatEmpty {
+    @apply text-sm text-muted-foreground italic py-4 text-center;
+  }
+  .chatMessage {
+    @apply grid gap-1 px-3 py-2 rounded-md border bg-background;
+  }
+  .chatMessage .chatRole {
+    @apply text-[10px] uppercase tracking-widest text-muted-foreground;
+  }
+  .chatMessage p {
+    @apply text-sm leading-relaxed whitespace-pre-wrap;
+  }
+  .chatMessage--user {
+    @apply bg-secondary/60 border-secondary;
+  }
+  .chatMessage--assistant {
+    @apply bg-card;
+  }
+  .chatMessage--pending p {
+    @apply text-muted-foreground italic;
+  }
+
+  .chatComposer {
+    @apply grid grid-cols-[1fr_auto] gap-2;
+  }
+  .chatComposer textarea {
+    @apply resize-none rounded-md border bg-background px-3 py-2 text-sm
+      placeholder:text-muted-foreground focus-visible:outline-none
+      focus-visible:ring-2 focus-visible:ring-ring;
+  }
+  .chatComposer button {
+    @apply self-end inline-flex items-center rounded-md
+      bg-primary px-4 py-2 text-sm font-medium text-primary-foreground
+      hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed
+      transition-colors;
+  }
 }
 
-/* 인쇄 시 UI 요소 숨김 */
+/* 인쇄(PDF로 저장) 시 UI 요소 숨김 */
 @media print {
   .no-print {
     display: none !important;
   }
+  body {
+    background: white !important;
+  }
   main {
     padding: 0 !important;
     max-width: none !important;
+  }
+  .document {
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    break-inside: avoid;
+  }
+  .section,
+  .section.compact {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  .documentHeader strong {
+    font-size: 22pt;
   }
 }

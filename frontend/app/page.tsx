@@ -4,6 +4,7 @@ import { GenerateResponse, generatePatent } from "../lib/api";
 import { sampleResponse } from "../lib/sampleResponse";
 import { FormEvent, useEffect, useState } from "react";
 import { getOrCreateSessionId } from "@/lib/session";
+import { RevisionChat } from "@/components/RevisionChat";
 
 export default function Home() {
   const [idea, setIdea] = useState("방구로 가는 자동차");
@@ -38,7 +39,7 @@ export default function Home() {
 
   return (
     <main className="shell">
-      <section className="workspace">
+      <section className="workspace no-print">
         <div className="intro">
           <p className="eyebrow">Brainrot Patent</p>
           <h1>황당한 아이디어를 특허 명세서처럼 바꿉니다.</h1>
@@ -68,6 +69,17 @@ export default function Home() {
       </section>
 
       <section className="document" aria-live="polite">
+        <div className="flex justify-end no-print">
+          <button
+            type="button"
+            onClick={() => window.print()}
+            className="inline-flex items-center rounded-md bg-primary px-4
+            py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90
+            transition-colors"
+          >
+            최종 출력 (PDF로 저장)
+          </button>
+        </div>
         <div className="documentHeader">
           <span>창작형 특허 명세서</span>
           <strong>{result.document.title}</strong>
@@ -111,6 +123,11 @@ export default function Home() {
           ))}
         </footer>
       </section>
+      <RevisionChat
+        onDocumentUpdate={(document) =>
+          setResult((prev) => ({ ...prev, document }))
+        }
+      />
     </main>
   );
 }
