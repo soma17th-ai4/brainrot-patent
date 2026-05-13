@@ -26,6 +26,11 @@ test.describe("Brainrot Patent demo flow", () => {
         .replace(/\s+/g, "-")
         .replace(/[^\p{L}\p{N}-]/gu, "");
 
+<<<<<<< ours
+=======
+      await page.waitForTimeout(15000);
+
+>>>>>>> theirs
       await page.pdf({
         path: path.join(outputDir, `demo-result-${safeFileName}.pdf`),
         format: "A4",
