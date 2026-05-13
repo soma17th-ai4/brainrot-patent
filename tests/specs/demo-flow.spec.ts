@@ -2,41 +2,53 @@ import { expect, test } from "@playwright/test";
 import fs from "fs";
 import path from "path";
 
-const DEMO_INPUT = "방구로 가는 자동차";
+const DEMO_INPUTS = [
+  "방구로 가는 자동차",
+  "기억을 USB처럼 꽂아서 옮기는 헬멧",
+  "잠을 대신 자주는 베개",
+];
 
-test("demo input renders a patent-style result and exports PDF", async ({ page }) => {
-  await page.goto("/");
+test.describe("Brainrot Patent demo flow", () => {
+  for (const demoInput of DEMO_INPUTS) {
+    test(`renders a patent-style result and exports PDF: ${demoInput}`, async ({ page }) => {
+      await page.goto("/");
 
-  await page.getByLabel("발명 아이디어").fill(DEMO_INPUT);
-  await page.getByRole("button", { name: "명세서 생성" }).click();
+      await page.getByLabel("발명 아이디어").fill(demoInput);
+      await page.getByRole("button", { name: "명세서 생성" }).click();
 
-  await expect(page.getByText("창작형 특허 명세서")).toBeVisible();
-  await expect(page.getByText("청구항")).toBeVisible();
+      await expect(page.getByText("창작형 특허 명세서")).toBeVisible();
+      await expect(page.getByRole("heading", { name: "청구항" })).toBeVisible();
 
-  const outputDir = path.join(process.cwd(), "artifacts");
-  fs.mkdirSync(outputDir, { recursive: true });
+      const outputDir = path.join(process.cwd(), "artifacts");
+      fs.mkdirSync(outputDir, { recursive: true });
 
-  await page.pdf({
-    path: path.join(outputDir, "demo-result.pdf"),
-    format: "A4",
-    printBackground: true,
-  });
-});
+      const safeFileName = demoInput
+        .replace(/\s+/g, "-")
+        .replace(/[^\p{L}\p{N}-]/gu, "");
 
-test("shows fallback result when API generation fails", async ({ page }) => {
-  await page.route("**/api/generate", async route => {
-    await route.fulfill({
-      status: 500,
-      contentType: "application/json",
-      body: JSON.stringify({ error: "forced error" }),
+      await page.pdf({
+        path: path.join(outputDir, `demo-result-${safeFileName}.pdf`),
+        format: "A4",
+        printBackground: true,
+      });
     });
+  }
+
+  test("shows fallback result when API generation fails", async ({ page }) => {
+    await page.route("**/api/generate", async route => {
+      await route.fulfill({
+        status: 500,
+        contentType: "application/json",
+        body: JSON.stringify({ error: "forced error" }),
+      });
+    });
+
+    await page.goto("/");
+
+    await page.getByLabel("발명 아이디어").fill(DEMO_INPUTS[0]);
+    await page.getByRole("button", { name: "명세서 생성" }).click();
+
+    await expect(page.getByText(/API 연결에 실패해 샘플 결과를 표시합니다/)).toBeVisible();
+    await expect(page.getByRole("heading", { name: "청구항" })).toBeVisible();
   });
-
-  await page.goto("/");
-
-  await page.getByLabel("발명 아이디어").fill(DEMO_INPUT);
-  await page.getByRole("button", { name: "명세서 생성" }).click();
-
-await expect(page.getByText(/API 연결에 실패해 샘플 결과를 표시합니다/)).toBeVisible();
-await expect(page.getByRole("heading", { name: "청구항" })).toBeVisible();
 });
